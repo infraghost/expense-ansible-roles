@@ -1,7 +1,7 @@
   - name: Install MySql Server
-      ansible.builtin.dnf:
-        name: mysql-server
-        state: latest # Ensure the latest version is installed
+    ansible.builtin.dnf:
+      name: mysql-server
+      state: latest # Ensure the latest version is installed
 
   - name: Start MySql Service
     ansible.builtin.systemd:
