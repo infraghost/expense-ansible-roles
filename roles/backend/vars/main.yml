@@ -1,0 +1,4 @@
+login_user: root
+login_password: Expense@1
+login_host: localhost
+db_host: localhost
