@@ -1,1 +1,2 @@
-mysql_root_password: Expense@1 
+mysql_root_password: Expense@1
+mysql_login_host: 18.234.37.147
