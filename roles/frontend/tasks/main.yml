@@ -1,0 +1,68 @@
+- name: Install Nginx
+  ansible.builtin.dnf:
+    name: nginx
+    state: latest
+
+- name: Stop Nginx if running (optional cleanup step)
+  ansible.builtin.service:
+    name: nginx
+    state: stopped
+  ignore_errors: yes
+
+- name: Delete default Nginx web directory
+  ansible.builtin.file:
+    path: /usr/share/nginx/html
+    state: absent
+
+- name: Create new Nginx web directory
+  ansible.builtin.file:
+    path: /usr/share/nginx/html
+    state: directory
+
+- name: Download and extract frontend build
+  ansible.builtin.unarchive:
+    src: https://expense-builds.s3.us-east-1.amazonaws.com/expense-frontend-v2.zip
+    dest: /usr/share/nginx/html
+    remote_src: yes
+
+# - name: Create Nginx proxy config for backend
+#   ansible.builtin.copy:
+#     dest: /etc/nginx/default.d/expense.conf
+#     content: |
+#       proxy_http_version 1.1;
+
+#       location /api/ {
+#           proxy_pass http://{{ backend_ip }}:8080/;
+#           proxy_set_header Host $host;
+#           proxy_set_header X-Real-IP $remote_addr;
+#           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+#       }
+
+#       location /health {
+#           stub_status on;
+#           access_log off;
+#       }
+
+#If there is change in configuration, restart Nginx
+- name: Copy expense.conf to remote server
+  ansible.builtin.template:
+    src: expense.conf.j2
+    dest: /etc/nginx/default.d/expense.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify:
+    - Validate Nginx configuration
+    - Start and enable Nginx
+
+# - name: Validate Nginx configuration
+#   ansible.builtin.command: nginx -t
+#   register: nginx_config_check
+#   changed_when: false
+#   failed_when: nginx_config_check.rc != 0
+
+# - name: Start and enable Nginx
+#   ansible.builtin.service:
+#     name: nginx
+#     state: started
+#     enabled: yes
