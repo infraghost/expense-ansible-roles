@@ -66,6 +66,6 @@
   #     login_unix_socket: /var/lib/mysql/mysql.sock
   #   when: mysql_connection_output.failed | default(true)
 
-  - name: setup root password
+  - name: Setup root Password
     ansible.builtin.command: "mysql_secure_installation --set-root-pass {{ mysql_root_password }}"
     when: mysql_connection_output.failed is true # don't give {{ }} in when condition
