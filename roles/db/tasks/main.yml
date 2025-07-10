@@ -25,15 +25,15 @@
         - cryptography
       executable: pip3.9 # Use the specific Python executable if needed
 
-    # Check if already mysql password is setup or not
-    # - name: Check DB Connection
-    #   community.mysql.mysql_info:
-    #     login_user: root
-    #     login_password: "{{ mysql_root_password }}"
-    #     login_host: "{{ mysql_login_host }}"
-    #     filter: version
-    #   ignore_errors: yes
-    #   register: mysql_connection_output
+  #   # Check if already mysql password is setup or not
+  # - name: Check DB Connection
+  #   community.mysql.mysql_info:
+  #     login_user: root
+  #     login_password: "{{ mysql_root_password }}"
+  #     login_host: "{{ mysql_login_host }}"
+  #     filter: version
+  #   ignore_errors: yes
+  #   register: mysql_connection_output
 
   - name: Check DB connection
     community.mysql.mysql_info:
