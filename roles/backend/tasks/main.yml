@@ -56,13 +56,13 @@
     name: mysql
     state: present
 
-- name: Ensure transactions database exists
-  community.mysql.mysql_db:
-    name: all
-    state: present
-    login_user: "{{ login_user }}"
-    login_password: "{{ login_password }}"
-    login_host: "{{ login_host }}"
+# - name: Ensure transactions database exists
+#   community.mysql.mysql_db:
+#     name: all
+#     state: present
+#     login_user: "{{ login_user }}"
+#     login_password: "{{ login_password }}"
+#     login_host: "{{ login_host }}"
 
 
 - name: Import Data in MySQL
