@@ -56,7 +56,6 @@
   notify:
     - Validate Nginx configuration
     - Start and enable Nginx
-  remote_src: yes
 
 # - name: Validate Nginx configuration
 #   ansible.builtin.command: nginx -t
