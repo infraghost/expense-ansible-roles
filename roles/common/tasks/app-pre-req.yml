@@ -12,5 +12,6 @@
 - name: Download and Expreact Code
   ansible.builtin.unarchive:
     src: "https://expense-builds.s3.us-east-1.amazonaws.com/expense-backend-v2.zip"
-    dest: "{{ app_location }}"
+    #dest: "{{ app_location }}"
+    dest: /tmp/backend.zip
     remote_src: yes
