@@ -9,8 +9,14 @@
     path: "{{ app_location }}"
     state: directory
 
+# - name: Download and Expreact Code
+#   ansible.builtin.unarchive:
+#     src: "https://expense-builds.s3.us-east-1.amazonaws.com/expense-backend-v2.zip"
+#     dest: "{{ app_location }}"
+#     remote_src: yes
+
 - name: Download and Expreact Code
   ansible.builtin.unarchive:
-    src: "https://expense-builds.s3.us-east-1.amazonaws.com/expense-backend-v2.zip"
+    src: "https://expense-builds.s3.us-east-1.amazonaws.com/expense-{{ component }}-v2.zip"
     dest: "{{ app_location }}"
     remote_src: yes
