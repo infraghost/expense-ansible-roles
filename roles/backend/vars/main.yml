@@ -1,6 +1,6 @@
 login_user: root
 login_password: Expense@1
-login_host: 52.91.181.70
-db_host: 52.91.181.70
+login_host: 23.20.138.224
+db_host: 23.20.138.224
 app_location: /app
 component: backend

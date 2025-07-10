@@ -1,3 +1,3 @@
-backend_ip: localhost
+backend_ip: 54.225.25.189
 component: frontend
 app_location: /usr/share/nginx/html
