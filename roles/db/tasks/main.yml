@@ -35,13 +35,23 @@
   #   ignore_errors: yes
   #   register: mysql_connection_output
 
-  - name: Check DB connection
-    community.mysql.mysql_info:
+  # - name: Check DB connection
+  #   community.mysql.mysql_info:
+  #     login_user: "{{ login_user }}"
+  #     login_password: "{{ mysql_root_password }}"
+  #     login_host: "{{ mysql_login_host }}"
+  #     filter: version
+  #   ignore_errors: yes
+  #   register: mysql_connection_output
+
+  - name: Import Data into MySQL
+    community.mysql.mysql_db:
+      name: all
+      state: import
+      target: /app/schema/backend.sql
       login_user: "{{ login_user }}"
       login_password: "{{ mysql_root_password }}"
       login_host: "{{ mysql_login_host }}"
-      filter: version
-    ignore_errors: yes
     register: mysql_connection_output
 
   - name: Print Output
