@@ -9,9 +9,9 @@
     name: nodejs
     state: installed
 
-# - name: Creating expense user
-#   ansible.builtin.user:
-#     name: expense
+- name: Creating expense user
+  ansible.builtin.user:
+    name: expense
 
 # - name: Create app Directory
 #   ansible.builtin.file:
