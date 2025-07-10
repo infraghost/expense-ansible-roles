@@ -23,16 +23,16 @@
 #     url: https://expense-builds.s3.us-east-1.amazonaws.com/expense-backend-v2.zip
 #     dest: /tmp/backend.zip
 
-- name: Import COmmon Roles
+- name: Import Common Roles
   ansible.builtin.import_role:
     name: common
     tasks_from: app-pre-req
 
-- name: UnZip
-  ansible.builtin.unarchive:
-    src: /tmp/backend.zip #bydefault checks in ansible server
-    dest: /app
-    remote_src: yes
+# - name: UnZip
+#   ansible.builtin.unarchive:
+#     src: /tmp/backend.zip #bydefault checks in ansible server
+#     dest: /app
+#     remote_src: yes
 
 - name: Install NPM Dependencies
   ansible.builtin.command: npm install
