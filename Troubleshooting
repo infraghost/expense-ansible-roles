@@ -1,0 +1,256 @@
+Troubleshooting Guide: Frontend to Database Data Flow
+This document outlines common issues and their solutions when data from your frontend application isn't successfully reaching your backend and being persisted in the database. It covers problems related to Nginx proxying, backend service startup, and MySQL database access.
+
+1. Understanding the Data Flow
+Before troubleshooting, it's essential to understand the typical data flow:
+
+User Interaction: User interacts with the Frontend (served by Nginx).
+
+API Request: Frontend JavaScript sends an API request (e.g., POST /api/transaction) to the Frontend Server's Nginx.
+
+Nginx Proxy: Nginx, configured as a reverse proxy, forwards this request to the Backend Server's Node.js application.
+
+Backend Processing: The Node.js application processes the request, performs business logic, and attempts to interact with the database.
+
+Database Interaction: The Backend connects to the MySQL Database to read or write data.
+
+Response: The Backend sends a response back to Nginx, which then sends it back to the Frontend, and finally to the user's browser.
+
+2. General Troubleshooting Strategy
+Always start from the "outside-in" (browser to Nginx) and work your way down the stack (Nginx to Backend, Backend to Database).
+
+Check Browser Developer Tools: See what requests are being sent and what responses are received.
+
+Check Nginx Logs: Verify if requests are hitting Nginx and how it's handling them.
+
+Check Backend Service Status & Logs: Confirm the backend application is running and processing requests.
+
+Check Database Connectivity & Data: Verify the backend can connect to the database and if data is actually being stored.
+
+3. Common Issues and Solutions
+Issue A: Frontend Data Not Reaching Backend (Nginx Proxying Problems)
+Symptoms:
+
+Frontend UI doesn't update or shows generic errors.
+
+Backend application logs (journalctl -u backend.service -f) show no new entries when frontend data is entered.
+
+Nginx access.log shows 404 Not Found or 50x errors for /api/ requests.
+
+Nginx error.log shows connect() failed (111: Connection refused) or Connection timed out.
+
+Debugging Steps & Solutions:
+
+Browser Developer Tools (Network Tab):
+
+Open your browser (e.g., Chrome/Firefox).
+
+Press F12 to open Developer Tools, go to the "Network" tab.
+
+Perform the action in your frontend application (e.g., submit a form).
+
+Observe: Look for XHR or Fetch requests to your /api/ endpoints.
+
+Check:
+
+URL: Is it http://<frontend_ip>/api/...?
+
+Status Code: Is it 404, 502 (Bad Gateway), 504 (Gateway Timeout), or something else?
+
+Response: What did the server send back?
+
+Solution: If the request isn't even showing up here, your frontend JavaScript might have an error (check "Console" tab for JS errors). If it's showing, proceed to Nginx logs.
+
+Nginx Access Log (/var/log/nginx/access.log):
+
+On Frontend Server: sudo tail -f /var/log/nginx/access.log
+
+Observe: Do you see entries for GET /api/... or POST /api/... when you interact with the frontend?
+
+If YES: Nginx is receiving the request. Proceed to Nginx Error Log.
+
+If NO: The request isn't reaching Nginx. Check frontend server's firewall/security groups (port 80/443) or browser issues.
+
+Nginx Error Log (/var/log/nginx/error.log):
+
+On Frontend Server: sudo tail -f /var/log/nginx/error.log
+
+Observe: Look for [error] messages.
+
+Common Error: connect() failed (111: Connection refused) while connecting to upstream, client: ..., upstream: "http://<backend_ip>:8080/..."
+
+Meaning: Nginx cannot establish a connection to your backend application.
+
+Solution:
+
+Verify Backend IP in Nginx config: Check /etc/nginx/default.d/expense.conf on the frontend server. Ensure proxy_pass http://{{ backend_ip }}:8080/; uses the correct internal IP address of your backend server. Get the backend server's IP with ip a or ifconfig on the backend server.
+
+Reload Nginx: After any changes to expense.conf, always run sudo nginx -t (to test syntax) and sudo systemctl reload nginx (to apply changes) on the frontend server.
+
+Check Backend Firewall/Security Group: On the backend server, ensure port 8080 is open to the frontend server's IP address (or the security group of the frontend server). Use sudo firewall-cmd --list-all or check cloud provider security groups.
+
+Verify Backend Application is Listening: On the backend server, run sudo netstat -tulnp | grep 8080. You should see node or mysqld listening on 0.0.0.0:8080 or backend_ip:8080.
+
+Issue B: Backend Service Not Starting Correctly (Systemd User Errors)
+Symptoms:
+
+sudo journalctl -u backend.service -f shows errors like:
+
+Failed to determine user credentials: No such process
+
+Failed at step USER spawning /bin/node: No such process
+
+Main process exited, code=exited, status=217/USER
+
+Debugging Steps & Solutions:
+
+Identify the User: The status=217/USER error means the User= specified in your backend.service file does not exist on the system.
+
+View Service File: cat /etc/systemd/system/backend.service
+
+Look for: The User= and Group= lines in the [Service] section (e.g., User=expense).
+
+Create the User and Group:
+
+You need Ansible tasks to ensure this user and group exist before the service is copied and started.
+
+Solution: Add the following tasks to your roles/backend/tasks/main.yml file, ideally early in the sequence:
+
+- name: Create 'expense' user
+  ansible.builtin.user:
+    name: expense
+    comment: "Expense Application User"
+    state: present
+    create_home: yes
+    system: yes # Create as a system user
+
+- name: Create 'expense' group (if not already created by user module)
+  ansible.builtin.group:
+    name: expense
+    state: present
+    system: yes # Create as a system group
+
+Re-run your Ansible playbook targeting the backend server.
+
+Issue C: MySQL Access Denied Errors (User Permissions & Host)
+Symptoms:
+
+Ansible tasks like community.mysql.mysql_info, mysql_user, or mysql_db fail with:
+
+ERROR 1045 (28000): Access denied for user 'root'@'localhost' (using password: YES)
+
+ERROR 1130 (28000): Host 'X.X.X.X' is not allowed to connect to this MySQL server
+
+ERROR 1064 (42000): You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'IDENTIFIED BY ...'
+
+ERROR 1410 (42000): You are not allowed to create a user with GRANT
+
+Debugging Steps & Solutions:
+
+ERROR 1045 (28000): Access denied for user 'root'@'localhost' (using password: YES)
+
+Meaning: The password for root@localhost is incorrect or not set on the MySQL server itself.
+
+Solution: You must reset the MySQL root password directly on the MySQL server.
+
+On MySQL Server (RHEL):
+
+sudo systemctl stop mysqld
+sudo systemctl set-environment MYSQLD_OPTS="--skip-grant-tables --skip-networking"
+sudo systemctl start mysqld
+# Open NEW terminal/SSH session
+mysql -u root # No password prompt
+# At mysql> prompt:
+ALTER USER 'root'@'localhost' IDENTIFIED BY 'YourNewSecurePasswordHere';
+FLUSH PRIVILEGES;
+EXIT;
+# Back in original terminal:
+sudo systemctl unset-environment MYSQLD_OPTS
+sudo systemctl stop mysqld
+sudo systemctl start mysqld
+# Test: mysql -u root -p (enter new password)
+
+Ensure mysql_root_password in your Ansible Vault matches YourNewSecurePasswordHere.
+
+ERROR 1130 (28000): Host 'X.X.X.X' is not allowed to connect to this MySQL server
+
+Meaning: The MySQL user (e.g., root) does not have privileges to connect from the specified host (e.g., your Ansible controller's IP).
+
+Solution: Grant privileges to the user from the specific host.
+
+On MySQL Server (at mysql> prompt, after root@localhost is fixed):
+
+-- Replace 'X.X.X.X' with the actual IP from the error message (your Ansible controller's IP)
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'X.X.X.X' IDENTIFIED BY 'Expense@1' WITH GRANT OPTION;
+FLUSH PRIVILEGES;
+
+Firewall/Security Groups: Ensure port 3306 on the MySQL server is open to the IP address of the connecting host (Ansible controller, or backend server).
+
+ERROR 1064 (42000): You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'IDENTIFIED BY ...'
+
+Meaning: You are using MySQL 8.0+ or a very recent MariaDB version where GRANT ... IDENTIFIED BY is deprecated/disallowed for existing users. User creation/alteration and privilege granting are separate operations.
+
+Solution (in Ansible): Ensure your mysql_user task for setting the root@localhost password uses host: localhost and login_unix_socket. For granting remote access, ensure you're using the correct mysql_user parameters.
+
+Corrected Ansible tasks for roles/db/tasks/main.yml: (As provided in the previous full main.yml solution). The mysql_user module handles the CREATE USER or ALTER USER implicitly when state: present is used with name, host, and password. The key is ensuring the host parameter is correct for the specific user-host combination you're targeting.
+
+ERROR 1410 (42000): You are not allowed to create a user with GRANT
+
+Meaning: The user you are logged in as (e.g., root@localhost) does not have the GRANT OPTION privilege, which is required to grant privileges to other users/hosts.
+
+Solution: Re-grant GRANT OPTION to root@localhost while in safe mode.
+
+On MySQL Server (at mysql> prompt, while in safe mode):
+
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION;
+FLUSH PRIVILEGES;
+
+Then proceed with granting remote access.
+
+Issue D: Ansible File/Path Errors
+Symptoms:
+
+Could not find or access 'expense.conf.j2'
+
+ERROR! conflicting action statements: ansible.builtin.template, remote_src
+
+ERROR! 'ansible.builtin.dnf' is not a valid attribute for a Play
+
+Debugging Steps & Solutions:
+
+Could not find or access 'expense.conf.j2'
+
+Meaning: Ansible's template module expects src files to be in the templates/ subdirectory of the role.
+
+Solution: Place expense.conf.j2 inside roles/frontend/templates/. Similarly, backend.service.j2 should be in roles/backend/templates/.
+
+conflicting action statements: ansible.builtin.template, remote_src
+
+Meaning: The template module processes a local file and sends it to the remote. remote_src means the file is already on the remote. These conflict.
+
+Solution: Remove remote_src: yes from ansible.builtin.template tasks.
+
+'ansible.builtin.dnf' is not a valid attribute for a Play
+
+Meaning: You are trying to run a task file (roles/db/tasks/main.yml) directly as a playbook. Task files only contain tasks, not play-level directives like hosts or become.
+
+Solution: Create a main playbook (playbook.yml or site.yml) that calls your roles using roles:.
+
+# playbook.yml (example)
+---
+- name: Deploy Expense Application
+  hosts: all # Or specific groups
+  become: yes
+  vars_files:
+    - ansible-keys.yml # Your vault file
+  roles:
+    - role: db
+      when: "'db_servers' in group_names"
+    - role: backend
+      when: "'backend_servers' in group_names"
+    - role: frontend
+      when: "'frontend_servers' in group_names"
+
+Then run ansible-playbook playbook.yml --ask-vault-pass.
+
+By systematically working through these common issues and using the provided debugging commands, you should be able to identify and resolve most problems in your Ansible-deployed application stack.
