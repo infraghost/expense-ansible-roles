@@ -48,10 +48,14 @@
     ansible.builtin.debug:
       msg: "MySQL connection output: {{ mysql_connection_output }}"
 
-  - name: Set MySQL root password if not set (initial setup)
-    community.mysql.mysql_user:
-      name: root
-      host: "{{ mysql_login_host }}"
-      password: "{{ mysql_root_password }}"
-      login_unix_socket: /var/lib/mysql/mysql.sock
-    when: mysql_connection_output.failed | default(true)
+  # - name: Set MySQL root password if not set (initial setup)
+  #   community.mysql.mysql_user:
+  #     name: "{{ login_user }}"
+  #     host: "{{ mysql_login_host }}"
+  #     password: "{{ mysql_root_password }}"
+  #     login_unix_socket: /var/lib/mysql/mysql.sock
+  #   when: mysql_connection_output.failed | default(true)
+
+  - name: setup root password
+    ansible.builtin.command: "mysql_secure_installation --set-root-pass {{ mysql_root_password }}"
+    when: mysql_connection_output.failed is true # don't give {{ }} in when condition
