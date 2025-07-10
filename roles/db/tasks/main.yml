@@ -1,29 +1,29 @@
-  - name: Install MySql Server
-    ansible.builtin.dnf:
-      name: mysql-server
-      state: latest # Ensure the latest version is installed
+  # - name: Install MySql Server
+  #   ansible.builtin.dnf:
+  #     name: mysql-server
+  #     state: latest # Ensure the latest version is installed
 
-  - name: Start MySql Service
-    ansible.builtin.systemd:
-      name: mysqld
-      state: started
-      enabled: yes # Ensure the service starts on boot
+  # - name: Start MySql Service
+  #   ansible.builtin.systemd:
+  #     name: mysqld
+  #     state: started
+  #     enabled: yes # Ensure the service starts on boot
 
-  - name: Ensure MySQL is running
-    ansible.builtin.command: systemctl status mysqld
-    register: mysql_status
-    changed_when: false
+  # - name: Ensure MySQL is running
+  #   ansible.builtin.command: systemctl status mysqld
+  #   register: mysql_status
+  #   changed_when: false
 
-  - name: Print MySQL status
-    ansible.builtin.debug:
-      msg: "MySQL service is running: {{ mysql_status.stdout }}"
+  # - name: Print MySQL status
+  #   ansible.builtin.debug:
+  #     msg: "MySQL service is running: {{ mysql_status.stdout }}"
 
-  - name: Install python mysql dependencies
-    ansible.builtin.pip:
-      name:
-        - PyMySQL
-        - cryptography
-      executable: pip3.9 # Use the specific Python executable if needed
+  # - name: Install python mysql dependencies
+  #   ansible.builtin.pip:
+  #     name:
+  #       - PyMySQL
+  #       - cryptography
+  #     executable: pip3.9 # Use the specific Python executable if needed
 
   #   # Check if already mysql password is setup or not
   # - name: Check DB Connection
@@ -33,7 +33,11 @@
   #     login_host: "{{ mysql_login_host }}"
   #     filter: version
   #   ignore_errors: yes
-  #   register: mysql_connection_output
+  #   register: mysql_db_connection_status
+
+  # - name: Print Output of mysql_db_connection_status
+  #   ansible.builtin.debug:
+  #     msg: "MySQL connection output: {{ mysql_db_connection_status }}"
 
   # - name: Check DB connection
   #   community.mysql.mysql_info:
@@ -44,28 +48,146 @@
   #   ignore_errors: yes
   #   register: mysql_connection_output
 
+  # - name: Print Output of mysql_connection_output
+  #   ansible.builtin.debug:
+  #     msg: "MySQL connection output: {{ mysql_connection_output }}"
+
+  # - name: Import Data into MySQL
+  #   community.mysql.mysql_db:
+  #     name: all
+  #     state: import
+  #     target: /app/schema/backend.sql
+  #     login_user: "{{ login_user }}"
+  #     login_password: "{{ mysql_root_password }}"
+  #     login_host: "{{ mysql_login_host }}"
+  #   register: mysql_import_status
+  #   when: mysql_connection_output.failed is not defined or mysql_connection_output.failed is false
+
+  # - name: Print Output of Import Data into MySQL
+  #   ansible.builtin.debug:
+  #     msg: "MySQL connection output: {{ mysql_import_status }}"
+
+  # # - name: Set MySQL root password if not set (initial setup)
+  # #   community.mysql.mysql_user:
+  # #     name: "{{ login_user }}"
+  # #     host: "{{ mysql_login_host }}"
+  # #     password: "{{ mysql_root_password }}"
+  # #     login_unix_socket: /var/lib/mysql/mysql.sock
+  # #   when: mysql_connection_output.failed | default(true)
+
+  # # - name: Setup root Password
+  # #   ansible.builtin.command: "mysql_secure_installation --set-root-pass {{ mysql_root_password }}"
+  # #   when: mysql_connection_output.failed is true # don't give {{ }} in when condition
+
+  - name: Install MySQL Server
+    ansible.builtin.dnf:
+      name: mysql-server
+      state: latest # Ensure the latest version is installed
+    # This task ensures the MySQL server package is installed.
+
+  - name: Start and Enable MySQL Service
+    ansible.builtin.systemd:
+      name: mysqld
+      state: started
+      enabled: yes # Ensure the service starts on boot
+    # This task ensures the MySQL daemon is running and configured to start on system boot.
+
+  - name: Verify MySQL Service Status
+    ansible.builtin.command: systemctl status mysqld
+    register: mysql_service_status
+    changed_when: false # This command doesn't change system state
+    failed_when: mysql_service_status.rc != 0 # Task fails if service is not running
+    # Checks the operational status of the MySQL service.
+
+  - name: Print MySQL Service Status
+    ansible.builtin.debug:
+      msg: "MySQL service status: {{ mysql_service_status.stdout }}"
+    # Displays the output of the MySQL service status for debugging.
+
+  - name: Install Python MySQL Dependencies
+    ansible.builtin.pip:
+      name:
+        - PyMySQL # Required for Ansible's MySQL modules to connect
+        - cryptography # Often a dependency for PyMySQL or other security features
+      executable: pip3.9 # Specify Python 3.9's pip if multiple Python versions exist
+    # Installs the necessary Python libraries on the target server for Ansible to interact with MySQL.
+
+  - name: Check if MySQL root password is set for 'root'@'localhost'
+    community.mysql.mysql_info:
+      login_user: root
+      # Attempt to connect using the expected root password.
+      # This checks if the password is already configured for local connections.
+      login_password: "{{ mysql_root_password }}"
+      login_host: localhost # Always check local connection first for initial setup
+      filter: version # A simple filter to get some info, just to test connection
+    ignore_errors: yes # This task is expected to fail if the password is not set or incorrect
+    register: root_password_check_result_localhost
+    # Registers the outcome of the connection attempt. If 'failed' is true, the password isn't set/correct.
+
+  - name: Print result of 'root'@'localhost' password check
+    ansible.builtin.debug:
+      msg: "Root password check result (localhost): {{ root_password_check_result_localhost }}"
+    # Debug output to show whether the local root password check succeeded or failed.
+
+  - name: Set MySQL root password for 'root'@'localhost' if not set
+    community.mysql.mysql_user:
+      name: root
+      host: localhost
+      password: "{{ mysql_root_password }}"
+      # Use login_unix_socket for initial setup if network connection for root is not yet configured.
+      # This is the most reliable way to set the root password for 'localhost' on a fresh install.
+      login_unix_socket: /var/lib/mysql/mysql.sock # Common socket path for RHEL
+      state: present # Ensures the user exists (or is created if not)
+      priv: "*.*:ALL,GRANT" # Grants all privileges and the ability to grant them (GRANT OPTION)
+    when: root_password_check_result_localhost.failed is defined and root_password_check_result_localhost.failed
+    # This task runs ONLY if the previous 'root_password_check_result_localhost' task failed,
+    # indicating that the password needs to be set or corrected for 'root'@'localhost'.
+
+  - name: Check if MySQL root user has remote access from Ansible controller's IP
+    community.mysql.mysql_info:
+      login_user: root
+      login_password: "{{ mysql_root_password }}"
+      login_host: "{{ mysql_login_host }}" # Connect using the configured DB host IP
+      filter: version
+    ignore_errors: yes # This task is expected to fail if remote access isn't granted
+    register: root_password_check_result_remote
+
+  - name: Print result of remote root access check
+    ansible.builtin.debug:
+      msg: "Root password check result (remote): {{ root_password_check_result_remote }}"
+    # Debug output to show whether the remote root access check succeeded or failed.
+
+  - name: Grant remote access to 'root'@'{{ ansible_host }}' if not already granted
+    community.mysql.mysql_user:
+      name: root
+      # ansible_host automatically resolves to the IP of the Ansible control node connecting to the target.
+      host: "{{ ansible_host }}"
+      password: "{{ mysql_root_password }}"
+      priv: "*.*:ALL,GRANT" # Grant all privileges and the ability to grant them
+      state: present # Ensure the user for this specific host exists
+    when: root_password_check_result_remote.failed is defined and root_password_check_result_remote.failed
+    # This task runs ONLY if the previous 'root_password_check_result_remote' task failed,
+    # indicating that remote access needs to be granted for the Ansible controller's IP.
+
+  - name: Import Common Roles (assumes this role prepares /app/schema/backend.sql)
+    ansible.builtin.import_role:
+      name: common
+      tasks_from: app-pre-req
+    # This task is expected to ensure the necessary data file for import is present on the server.
+
   - name: Import Data into MySQL
     community.mysql.mysql_db:
-      name: all
+      name: all # Target all databases or specify 'transactions' if that's the only one
       state: import
-      target: /app/schema/backend.sql
-      login_user: "{{ login_user }}"
+      target: /app/schema/backend.sql # Path to your SQL dump file on the remote server
+      login_user: root
       login_password: "{{ mysql_root_password }}"
-      login_host: "{{ mysql_login_host }}"
-    register: mysql_connection_output
+      login_host: "{{ mysql_login_host }}" # Use the configured DB host for connection
+    # This task will run only if the previous password setting/granting steps were successful,
+    # ensuring that Ansible can now connect to the MySQL database.
+    register: mysql_import_status
 
-  - name: Print Output
+  - name: Print Output of Import Data into MySQL
     ansible.builtin.debug:
-      msg: "MySQL connection output: {{ mysql_connection_output }}"
-
-  # - name: Set MySQL root password if not set (initial setup)
-  #   community.mysql.mysql_user:
-  #     name: "{{ login_user }}"
-  #     host: "{{ mysql_login_host }}"
-  #     password: "{{ mysql_root_password }}"
-  #     login_unix_socket: /var/lib/mysql/mysql.sock
-  #   when: mysql_connection_output.failed | default(true)
-
-  - name: Setup root Password
-    ansible.builtin.command: "mysql_secure_installation --set-root-pass {{ mysql_root_password }}"
-    when: mysql_connection_output.failed is true # don't give {{ }} in when condition
+      msg: "MySQL import status: {{ mysql_import_status }}"
+    # Displays the result of the data import operation.
