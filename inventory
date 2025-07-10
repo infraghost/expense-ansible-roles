@@ -5,7 +5,7 @@
 34.226.219.174
 
 [frontend]
-34.227.76.229
+54.211.163.237
 
 [all:vars]
 ansible_user=ec2-user
