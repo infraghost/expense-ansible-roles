@@ -2,7 +2,7 @@
 52.91.181.70
 
 [backend]
-18.234.37.147
+98.83.153.91
 
 [all:vars]
 ansible_user=ec2-user
