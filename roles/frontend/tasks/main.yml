@@ -53,9 +53,6 @@
   ansible.builtin.template:
     src: expense.conf.j2
     dest: /etc/nginx/default.d/expense.conf
-    owner: root
-    group: root
-    mode: '0644'
   notify:
     - Validate Nginx configuration
     - Start and enable Nginx
