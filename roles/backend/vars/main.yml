@@ -1,5 +1,5 @@
-login_user: root
-login_password: Expense@1
+# login_user: root
+# login_password: Expense@1
 login_host: 13.216.239.106
 db_host: 13.216.239.106
 app_location: /app
