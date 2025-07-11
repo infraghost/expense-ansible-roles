@@ -1,3 +1,3 @@
-mysql_root_password: Expense@1
+#mysql_root_password: Expense@1
 mysql_login_host: localhost #always use localhost for local MySQL connections
 login_user: root
