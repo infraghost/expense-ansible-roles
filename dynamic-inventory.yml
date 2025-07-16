@@ -31,3 +31,14 @@
     ansible.builtin.pip:
       name: botocore
       state: present
+  
+  - name: Install Nginx
+    ansible.builtin.dnf:
+      name: nginx
+      state: present
+  
+  - name: Start Nginx service
+    ansible.builtin.systemd:
+      name: nginx
+      state: started
+      enabled: yes
