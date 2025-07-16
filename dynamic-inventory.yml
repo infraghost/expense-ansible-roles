@@ -1,0 +1,13 @@
+- name: Install Few Packages
+  hosts: all
+  become: true
+  tasks:
+    - name: Install nano Editor
+      ansible.builtin.dnf:
+        name: nano
+        state: present
+    
+    - name: Install ansible
+      ansible.builtin.dnf:
+        name: ansible
+        state: present
