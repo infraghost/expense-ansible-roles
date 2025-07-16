@@ -11,3 +11,23 @@
     ansible.builtin.dnf:
       name: ansible
       state: present
+  
+  - name: Install Python3
+    ansible.builtin.dnf:
+      name: python3
+      state: present
+  
+  - name: Install Python3 pip
+    ansible.builtin.dnf:
+      name: python3-pip
+      state: present
+  
+  - name: Install boto3
+    ansible.builtin.pip:
+      name: boto3
+      state: present
+  
+  - name: Install botocore
+    ansible.builtin.pip:
+      name: botocore
+      state: present
