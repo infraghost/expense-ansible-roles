@@ -1,14 +1,18 @@
+# File: aws_ec2.yaml
 plugin: amazon.aws.aws_ec2
 regions:
-- us-east-1
-# keyed_groups:
-# - key: tags['Name']
-#   prefix: ''
-#   parent_group: ''
+  - us-east-1
 
-# filters:
-#   tag:Name: "backend*"
+filters:
+  tag:Name:
+    - db
+    - backend
+    - frontend
 
-# compose:
-#   # This sets the ansible_host variable to connect with the private IP address without changing the hostname.
-#   ansible_host: private_ip_address
+keyed_groups:
+  - key: tags.Name
+    prefix: ''
+    parent_group: ''
+
+compose:
+  ansible_host: public_ip_address
