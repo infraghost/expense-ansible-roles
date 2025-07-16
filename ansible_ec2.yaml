@@ -6,7 +6,7 @@ filters:
   tag:Name: backend*
 
 keyed_groups:
-  - key: tags['Name']
+  - key: tags.Name
     prefix: ''
     parent_group: ''
 
